@@ -120,30 +120,29 @@ if __name__ == "__main__":
     # Generate Keys
     Evaluator.SecretKeyGen()
     Evaluator.PublicKeyGen()
-    Evaluator.EvalKeyGenV1(T)
-    Evaluator.EvalKeyGenV2(p)
+    # Evaluator.EvalKeyGenV1(T)
+    # Evaluator.EvalKeyGenV2(p)
 
     # Generate random message
     # m = Poly(n,t,np)
     # m.randomize(2)
     # mr1 = random.randint(0,t-1)
     # mr2 = random.randint(0,t-1)
-    mr1 = 10
-    mr2 = 20
+    m = 10
+    # mr2 = 20
 
     # Encode message
-    m1  = Evaluator.Encode(mr1)
-    m2  = Evaluator.Encode(mr2)
+    # m1  = Evaluator.Encode(mr1)
+    # m2  = Evaluator.Encode(mr2)
 
     # Encrypt message
-    ct1 = Evaluator.Encryption(m1)
-    ct2 = Evaluator.Encryption(m2)
+    ct = Evaluator.Encryption(m)
 
     # Add two message
     # ct = Evaluator.HomomorphicAddition(ct1, ct2)
 
     # Multiply two message
-    ct = Evaluator.HomomorphicMultiplication(ct1,ct2)
+    # ct = Evaluator.HomomorphicMultiplication(ct1,ct2)
     # ct = Evaluator.RelinearizationV1(ct)
 
     # Decrypt message

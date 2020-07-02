@@ -46,6 +46,18 @@ class BFV:
         self.qnp= qnp # array NTT parameters: [w,w_inv,psi,psi_inv]
         self.Qnp= Qnp # array NTT parameters: [w,w_inv,psi,psi_inv]
         self.rns = RNS(n,q,t, Q,qnp,Qnp)
+
+        ### Calculations ##
+        self.q_total = self.rns.base_q.base_prod
+        self.q_mod_t = self.q_total % self.t
+
+        self.coeff_div_plain_modulus = self.q_total // self.t
+        self.upper_half_increment = self.q_total % self.t
+
+        self.coeff_div_plain_modulus_rns = self.rns.base_q.decompose(self.coeff_div_plain_modulus)
+        self.upper_half_increment_rns = self.rns.base_q.decompose(self.upper_half_increment)
+
+
     #
     def SecretKeyGen(self):
         """
@@ -102,19 +114,26 @@ class BFV:
     def Encryption(self, m):
         delta = int(math.floor(self.q/self.t))
 
+        # numerator = (m * self.q_mod_t) + ((self.t + 1) >> 1)
+        # fix = numerator // self.t
+
         u, e1, e2 = Poly(self.n,self.q,self.qnp), Poly(self.n,self.q,self.qnp), Poly(self.n,self.q,self.qnp)
 
         u.randomize(2)
         e1.randomize(self.B)
         e2.randomize(self.B)
 
-        md = Poly(self.n,self.q,self.qnp)
-        md.F = [(delta*x) % self.q for x in m.F]
-
         c0 = self.pk[0]*u + e1
-        c0 = c0 + md
         c1 = self.pk[1]*u + e2
 
+        # md = Poly(self.n, self.q, self.qnp)
+        #
+        # md.F = [(delta*x) % self.q for x in m.F]
+        temp = [0] * len(self.q)
+        for i in range(len(self.q)):
+            temp[i] = (self.coeff_div_plain_modulus_rns[i] * m + fix + c0.F[0][i]) % self.q[i]
+        c0.F[0] = temp
+        # c0 = c0 + md
         return [c0,c1]
     #
     def Decryption(self, ct):
@@ -171,17 +190,21 @@ class BFV:
     #
     def RelinearizationV2(self,ct):
         pass
-    #
+
     def Encode(self,m): # binary encode
-        mr = Poly(self.n,self.t,self.qnp)
-        mr.F = [(m >> x) & 0x1 for x in range(self.n)]
+        mr = Poly(self.n,self.t)
+        mt = m
+        for i in range(self.n):
+            mr.F[i] = (mt % self.t)
+            mt      = (mt // self.t)
         return mr
     #
     def Decode(self,m): # binary decode
         mr = 0
-        for i in range(self.n):
-            mr = mr + (int(m[i]) << i)
+        for i,c in enumerate(m.F):
+            mr = (mr + (c * pow(self.t,i)))# % self.t
         return mr
+    #
     #
     def __str__(self):
         str = ""

@@ -68,6 +68,7 @@ class RNS:
         for i in range(self.base_q.base_size):
             self.prod_t_gamma_mod_q[i] = self.base_t_gamma[0] * self.base_t_gamma[1] % self.q[i]
 
+        # Compute -prod(q)^(-1) mod {t, gamma}
         self.neg_inv_q_mod_t_gamma = [0] * self.base_t_gamma.base_size
         for i in range(self.base_t_gamma.base_size):
             self.neg_inv_q_mod_t_gamma[i] = self.base_q.base_prod % self.base_t_gamma[i]
@@ -83,10 +84,10 @@ class RNS:
     def decrypt_scale_and_round(self, ctext):
 
         # Compute | gamma * t | _qi * ct(s)
-        temp = [[0] * self.base_q.base_size] * self.n
+        temp = [[0] * self.base_q.base_size for _ in range(self.n)]
         for i in range(self.n):
             for j in range(len(self.q)):
-                temp[i][j] = (ctext[i][j] * self.prod_t_gamma_mod_q[i]) % self.q[j]
+                temp[i][j] = (ctext.F[i][j] * self.prod_t_gamma_mod_q[j]) % self.q[j]
 
         # Convert from q to {t, gamma}
         temp_t_gamma = self.base_q_to_base_t_gamma.fast_convert_array(temp)
@@ -94,7 +95,7 @@ class RNS:
         # Multiply by - prod(q) ^ (-1) mod {t, gamma}
         for i in range(self.n):
             for j in range(self.base_t_gamma.base_size):
-                temp_t_gamma[i][j] = (temp_t_gamma[i][j] * self.neg_inv_q_mod_t_gamma[j]) % self.base_t_gamma[i]
+                temp_t_gamma[i][j] = (temp_t_gamma[i][j] * self.neg_inv_q_mod_t_gamma[j]) % self.base_t_gamma[j]
 
         ptext = [0] * self.n
 
@@ -117,7 +118,7 @@ class BaseConverter:
         self.ibase = ibase
         self.obase = obase
 
-        self.base_change_matrix = [[0] * obase.base_size] * ibase.base_size
+        self.base_change_matrix = [[0] * obase.base_size for _ in range(ibase.base_size)]
         for i in range(obase.base_size):
             for j in range(ibase.base_size):
                 self.base_change_matrix[j][i] = ibase.punctured_prod_array[j] % self.obase[i]
@@ -128,12 +129,13 @@ class BaseConverter:
             for k in range(len(poly)):
                 poly[k][i] = (poly[k][i] * self.ibase.inv_punctured_prod_mod_base_array[i]) % self.ibase[i]
 
-        result_poly = [[0] * self.obase.base_size] * len(poly)
+        result_poly = [[0] * self.obase.base_size for _ in range(len(poly))]
+
         for j in range(self.obase.base_size):
             for k in range(len(poly)):
                 tmp = 0
                 for i in range(self.ibase.base_size):
-                    tmp += (poly[k][i] * self.base_change_matrix[j][i])
+                    tmp += (poly[k][i] * self.base_change_matrix[i][j])
                 result_poly[k][j] = tmp % self.obase[j]
         return result_poly
 
@@ -173,8 +175,16 @@ class RNSBase:
     def __getitem__(self, index):
         return self.rns_base[index]
 
-    def compose(self):
-        pass
+    def compose(self, rns_value):
+        value = 0
+        for i in range(self.base_size):
+            temp = ((self.inv_punctured_prod_mod_base_array[i] * rns_value[i]) % self.rns_base[i]) * self.punctured_prod_array[i]
+            value = (value + temp) % self.base_prod
+        return value
 
-    def decompose(self):
-        pass
+    """Define a total base component with its sub-modules"""
+    def decompose(self, value):
+        rns_value = [0] * self.base_size
+        for i in range(self.base_size):
+            rns_value[i] = value % self.rns_base[i]
+        return rns_value

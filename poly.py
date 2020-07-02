@@ -9,7 +9,7 @@ class Poly:
         self.n = n
         self.q = q  # q = [q0,q1,....]
         self.np = np  # NTT parameters: [[w,w_inv,psi,psi_inv],[w,w_inv,psi,psi_inv], .....]
-        self.F = [[0] * len(q)] * n
+        self.F = [[0] * len(self.q) for _ in range(self.n)]
         self.inNTT = False
 
     #
@@ -90,8 +90,8 @@ class Poly:
 
                 sb = [(x * (psi_inv ** pwr)) % self.q[j] for pwr, x in enumerate(sb_p)]
 
-                for i in range(len(sb)):
-                    c.F[i][j] = int(sb[i])
+                for i, r in enumerate(c.F):
+                    c.F[i][j] = sb[i]
                 c.inNTT = True
         return c
 
@@ -101,7 +101,7 @@ class Poly:
     def __setitem__(self, key, value):
         print(key)
         self.F[key] = value
-    #
+
     # def multiply_by_scalar_coeff(self, scalar, modulus):
     #
 
