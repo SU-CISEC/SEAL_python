@@ -257,3 +257,120 @@ class RNSTest(unittest.TestCase):
         self.assertEqual(0, result[2][0])
         self.assertEqual(2, result[2][1])
         self.assertEqual(0, result[2][2])
+
+    def test_decrypt_scale_and_round(self):
+        n = 2
+        t = 3
+        q = [5, 7]
+        b = [2305843009213317121, 2305843009213243393]
+
+
+        test_rns = RNS(n, t, q, b, qnp=[[0, 0, 0, 0], [0, 0, 0, 0]], bnp=[[0, 0, 0, 0], [0, 0, 0, 0]])
+
+        rns_poly = RNSPoly(n, q)
+        rns_poly[0][0] = 35
+        rns_poly[0][1] = 70
+        rns_poly[1][0] = 35
+        rns_poly[1][1] = 70
+
+        result = test_rns.decrypt_scale_and_round(rns_poly)
+        self.assertEqual(0, result[0])
+        self.assertEqual(0, result[1])
+
+        rns_poly = RNSPoly(n, q)
+        rns_poly[0][0] = 29
+        rns_poly[0][1] = 30 + 35
+        rns_poly[1][0] = 29
+        rns_poly[1][1] = 30 + 35
+
+        result = test_rns.decrypt_scale_and_round(rns_poly)
+        self.assertEqual(2, result[0])
+        self.assertEqual(0, result[1])
+
+    def test_divide_and_round_q_last_inplace(self):
+        """Case 1"""
+        n = 2
+        t = 3
+        q = [13, 7]
+        b = [2305843009213317121, 2305843009213243393]
+
+        test_rns = RNS(n, t, q, b, qnp=[[0, 0, 0, 0], [0, 0, 0, 0]], bnp=[[0, 0, 0, 0], [0, 0, 0, 0]])
+
+        rns_poly = RNSPoly(n, q)
+        rns_poly[0][0] = 1
+        rns_poly[0][1] = 2
+        rns_poly[1][0] = 1
+        rns_poly[1][1] = 2
+        result = test_rns.divide_and_round_q_last_inplace(rns_poly)
+
+        self.assertEqual(0, result[0][0])
+        self.assertEqual(0, result[0][1])
+
+        rns_poly = RNSPoly(n, q)
+        rns_poly[0][0] = 12
+        rns_poly[0][1] = 11
+        rns_poly[1][0] = 4
+        rns_poly[1][1] = 3
+        result = test_rns.divide_and_round_q_last_inplace(rns_poly)
+
+        self.assertEqual(4, result[0][0])
+        self.assertEqual(3, result[0][1])
+
+        rns_poly = RNSPoly(n, q)
+        rns_poly[0][0] = 6
+        rns_poly[0][1] = 2
+        rns_poly[1][0] = 5
+        rns_poly[1][1] = 1
+        result = test_rns.divide_and_round_q_last_inplace(rns_poly)
+
+        self.assertEqual(3, result[0][0])
+        self.assertEqual(2, result[0][1])
+
+        """Case 2"""
+        n = 2
+        t = 1
+        q = [3, 5, 7, 11]
+        b = [2305843009213317121, 2305843009213243393]
+
+        test_rns = RNS(n, t, q, b, qnp=[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], bnp=[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+
+        rns_poly = RNSPoly(n, q)
+        rns_poly[0][0] = 1
+        rns_poly[0][1] = 2
+        rns_poly[1][0] = 1
+        rns_poly[1][1] = 2
+        rns_poly[2][0] = 1
+        rns_poly[2][1] = 2
+        rns_poly[3][0] = 1
+        rns_poly[3][1] = 2
+        result = test_rns.divide_and_round_q_last_inplace(rns_poly)
+
+        self.assertEqual(0, result[0][0])
+        self.assertEqual(0, result[0][1])
+        self.assertEqual(0, result[1][0])
+        self.assertEqual(0, result[1][1])
+        self.assertEqual(0, result[2][0])
+        self.assertEqual(0, result[2][1])
+
+        # Next a case with non-trivial rounding; array is (60, 70)
+        rns_poly = RNSPoly(n, q)
+        rns_poly[0][0] = 0
+        rns_poly[0][1] = 1
+        rns_poly[1][0] = 0
+        rns_poly[1][1] = 0
+        rns_poly[2][0] = 4
+        rns_poly[2][1] = 0
+        rns_poly[3][0] = 5
+        rns_poly[3][1] = 4
+        result = test_rns.divide_and_round_q_last_inplace(rns_poly)
+
+        # We get only approximate result in this case
+        self.assertTrue((3 + 2 - result[0][0]) % 3 <= 1)
+        self.assertTrue((3 + 0 - result[0][1]) % 3 <= 1)
+        self.assertTrue((5 + 0 - result[1][0]) % 5 <= 1)
+        self.assertTrue((5 + 1 - result[1][1]) % 5 <= 1)
+        self.assertTrue((7 + 5 - result[2][0]) % 7 <= 1)
+        self.assertTrue((7 + 6 - result[2][1]) % 7 <= 1)
+
+
+
