@@ -390,25 +390,6 @@ class BFV:
         c0 = c0 + md
 
         return [c0, c1]
-        # for j in range(len(self.q)):
-        #     for i,c in enumerate(md[j].F):
-        #         if(c >= (self.t >> 1)):
-        #             temp = self.qi_div_t_rns[j] * c
-        #
-        #             temp_h = temp >> 64
-        #             temp_l = temp & 0xFFFFFFFFFFFFFFFF
-        #
-        #             temp_l = temp_l + 1
-        #             temp_h = temp_h + (temp_l >> 64)
-        #
-        #             temp = (temp_h << 64) + temp_l
-        #
-        #             temp = temp % self.q[j]
-        #
-        #             md[j][i] = temp
-        #         else:
-        #             md[j][i] = (c * self.qi_div_t_rns[j]) % self.q[j]
-
 
     def EncodeSEAL(self,m): # hex encode
         hex_poly = str(m)

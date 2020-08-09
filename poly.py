@@ -33,9 +33,10 @@ class RNSPoly:
         self.k += b.k
 
     def get_poly(self,key):
-        poly = Poly(self.n,self.RNS_mod[key],self.ntt_tables[key])
+        poly = Poly(self.n,self.RNS_mod[key])
         poly.F = self.rns_poly[key].F.copy()
         poly.inNTT = self.rns_poly[key].inNTT
+        poly.np = self.ntt_tables[key] if self.ntt_tables is not None else [0,0,0,0]
         return poly
 
     def __str__(self):
@@ -91,7 +92,7 @@ class RNSPoly:
 
     def drop_last_poly(self):
         self.rns_poly = self.rns_poly[:-1]
-        self.ntt_tables = self.ntt_tables[:-1]
+        self.ntt_tables = self.ntt_tables[:-1] if self.ntt_tables is not None else None
         self.RNS_mod = self.RNS_mod[:-1]
         self.k = len(self.RNS_mod)
 
@@ -260,4 +261,13 @@ class Poly:
             b.F = INTT(self.F,self.np[1],self.q)
             b.inNTT = False
         return b
+
+    def to_rns_poly(self):
+        rns_poly = RNSPoly(self.n, [self.q], [self.np])
+        rns_poly.k = 1
+        rns_poly.rns_poly[0].F = self.F.copy()
+        rns_poly.rns_poly[0].inNTT = self.inNTT
+        return rns_poly
+
+
 #

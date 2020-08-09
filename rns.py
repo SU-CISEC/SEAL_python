@@ -191,10 +191,12 @@ class RNS:
     # Ensure: Destination array in q
     """
     def fastbconv_sk(self, rns_poly_bsk):
+        last_poly = rns_poly_bsk.get_poly(-1)
+        rns_poly_bsk.drop_last_poly()
         dest_rns_poly_q = self.base_B_to_q.fast_convert_array(rns_poly_bsk)
-        temp_rns_poly_msk = self.base_B_to_m_sk.fast_convert_array(rns_poly_bsk.get_poly(-1))
+        temp_rns_poly_msk = self.base_B_to_m_sk.fast_convert_array(rns_poly_bsk)
 
-        alpha_poly_sk = ((temp_rns_poly_msk[0] + self.m_sk) - rns_poly_bsk.get_poly(-1)) * self.inv_prod_B_mod_m_sk
+        alpha_poly_sk = ((temp_rns_poly_msk[0] - last_poly) + self.m_sk) * self.inv_prod_B_mod_m_sk
 
         m_sk_div_2 = self.m_sk >> 1;
         for k in range(self.base_q.base_size):
@@ -204,7 +206,7 @@ class RNS:
                                              (self.prod_B_mod_q[k] * (self.m_sk - alpha_poly_sk[i]))) % self.base_q[k]
                 else:
                     dest_rns_poly_q[k][i] = (dest_rns_poly_q[k][i] +
-                                             (self.m_sk - self.prod_B_mod_q[k] * alpha_poly_sk[i])) % self.base_q[k]
+                                             ((self.base_q[k] - self.prod_B_mod_q[k]) * alpha_poly_sk[i])) % self.base_q[k]
 
         return dest_rns_poly_q
 
