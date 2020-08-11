@@ -47,7 +47,7 @@ class BFV:
         self.p = 0
 
         # for RNS it changed to [[w,w_inv,psi,psi_inv],[w,w_inv,psi,psi_inv],...]
-        self.qnp= qnp # array NTT parameters: [w,w_inv,psi,psi_inv]
+        self.qnp = qnp # array NTT parameters: [w,w_inv,psi,psi_inv]
         self.bnp = bnp
         #
         self.sk = []
@@ -360,7 +360,7 @@ class BFV:
         return mr
 #
 
-    def EncryptionSEAL_RNS(self, m, m_value):
+    def EncryptionSEAL_RNS(self, m_poly, m_len):
         # delta = int(math.floor(self.q/self.t))
         # Decompose q_mod_t into rns
 
@@ -370,24 +370,20 @@ class BFV:
         e1.randomize(self.B)
         e2.randomize(self.B)
 
-        numerator = (m_value * self.q_mod_t) + ((self.t + 1) >> 1)
-        fix = numerator // self.t
-
-        md = RNSPoly(self.n,self.q[:-1],self.qnp[-1])
-        # Copy message m into RNS poly
-        # md.copy_poly(m)
-
         c0 = self.pk[0] * u + e1
         c1 = self.pk[1] * u + e2
         c0 = self.rns.divide_and_round_q_last_inplace(c0)
         c1 = self.rns.divide_and_round_q_last_inplace(c1)
 
-        for i in range(len(self.q) - 1):
-            md[i][0] = ((m_value * self.qi_div_t_rns[i]) + fix)
+        for j in range(m_len):
+            numerator = (m_poly[j] * self.q_mod_t) + ((self.t + 1) >> 1)
+            fix = numerator // self.t
+
+            for i in range(len(self.q) - 1):
+                c0[i][j] = (c0[i][j] + ((m_poly[j] * self.qi_div_t_rns[i]) + fix)) % self.q[i]
 
         c0.drop_last_poly()
         c1.drop_last_poly()
-        c0 = c0 + md
 
         return [c0, c1]
 
@@ -400,6 +396,46 @@ class BFV:
             value += int(hex_poly[size - i - 1]) * pow(16, i)
             mr.F[size - i - 1] = int(hex_poly[i])
         return mr, value
+
+    def EncodeInt(self,value):
+        m_poly = Poly(self.n, self.t)
+        i = 0
+        while (value != 0):
+            if (value & 1) != 0:
+                m_poly[i] = 1
+            value >>= 1
+            i += 1
+        return m_poly, i
+
+    def DecodeInt(self, poly, poly_len):
+        coeff_neg_threshold = (self.t + 1) >> 1
+        result = 0
+        result_is_negative = False
+        for i in range(poly_len-1, 0, -1):
+            coeff = poly[i]
+            result = result << 1
+            coeff_is_negative = coeff >= coeff_neg_threshold
+            pos_value = coeff
+
+            if coeff_is_negative:
+                pos_value = self.t - pos_value
+
+            # Add or subtract-in coefficient.
+            if result_is_negative == coeff_is_negative:
+                result += pos_value
+            else:
+                result -= pos_value
+                if result < 0:
+                    result = -result
+                    result_is_negative = not result_is_negative
+
+        return result
+
+
+
+
+
+
     #
     def DecodeSEAL(self,m): # binary decode
         mr = 0

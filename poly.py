@@ -108,10 +108,12 @@ class Poly:
     #
     def randomize(self, B, domain=False):
         if B == 2:
-            self.F = [randint(-1, B - 1) % self.q for i in range(self.n)]
+            # self.F = [randint(-1, B - 1) % self.q for i in range(self.n)]
+            self.F = [1 for i in range(self.n)]
             self.inNTT = domain
         else:
-            self.F = [randint(0, B-1) for i in range(self.n)]
+            # self.F = [randint(0, B-1) for i in range(self.n)]
+            self.F = [1 for i in range(self.n)]
             self.inNTT = domain
     #
     def __str__(self):
