@@ -3,9 +3,47 @@ from rns import *
 from poly import *
 from ntt import *
 from BFV import *
+from ntt import *
 
 class BFVTest(unittest.TestCase):
     def test_encrypt_decrypt(self):
+        t = 1 << 6
+        n = 256
+
+        q = [1099511590913, 1099511592961, 1099511603713]
+        k = len(q)
+        q_root = [12044354199, 168913082, 694658335]
+
+        b = [2305843009213317121, 2305843009213243393]
+        l = len(b)
+        b_root = [829315415491244, 32973993658837]
+
+        # Determine B (bound of distribution X)
+        sigma = 3.1
+        B = int(10 * sigma)
+
+        # Determine T, p (relinearization)
+        T = 256
+        p = 16
+
+        Evaluator = BFV(n, t, q, b, q_root, b_root)
+
+        # Generate Keys
+        Evaluator.SecretKeyGen()
+        Evaluator.PublicKeyGen()
+
+        # Encode message
+        m_poly, m_len = Evaluator.EncodeInt(0x12345678)
+        encrypted = Evaluator.EncryptionSEAL_RNS(m_poly, m_len)
+
+        decrypted = Evaluator.DecryptionSEAL_RNS(encrypted)
+        print(decrypted)
+
+        result = Evaluator.DecodeInt(decrypted, m_len)
+
+        self.assertEqual(0x12345678, result)
+
+    def test_bfv_mult(self):
         t = 1 << 6
         n = 256
 
@@ -27,21 +65,26 @@ class BFVTest(unittest.TestCase):
         T = 256
         p = 16
 
-        Evaluator = BFV(n, t, B, q, q_ntt, b, b_ntt)
+        Evaluator = BFV(n, t, q, b, q_ntt, b_ntt)
 
         # Generate Keys
         Evaluator.SecretKeyGen()
         Evaluator.PublicKeyGen()
 
         # Encode message
-        m_poly, m_len = Evaluator.EncodeInt(0x12345678)
+        m_poly, m_len = Evaluator.EncodeInt(10)
         encrypted = Evaluator.EncryptionSEAL_RNS(m_poly, m_len)
 
-        decrypted = Evaluator.DecryptionSEAL_RNS(encrypted)
+        m_poly2, m_len2 = Evaluator.EncodeInt(5)
+        encrypted2 = Evaluator.EncryptionSEAL_RNS(m_poly2, m_len2)
 
-        result = Evaluator.DecodeInt(decrypted, m_len)
+        mul_enc = Evaluator.HomomorphicMultiplication_RNS(encrypted, encrypted2)
 
-        self.assertEqual(0x12345678, result)
+        decrypted = Evaluator.DecryptionSEAL_RNS(mul_enc)
+
+        result = Evaluator.DecodeInt(decrypted, m_len + m_len2)
+
+        self.assertEqual(50, result)
 
 
 

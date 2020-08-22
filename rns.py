@@ -12,9 +12,10 @@ class RNS:
         self.bnp = bnp
 
         # Constants
+        # TODO Make m_sk and gamma variable because they depend on q, in SEAL it changes when q is changed.
         self.m_sk = 2305843009213554689
         self.m_tilde = 1 << 32
-        self.gamma = 2305843009213489153
+        self.gamma = 2305843009213683713
 
         # Bases
         self.base_q = RNSBase(self.q, qnp)
@@ -245,9 +246,9 @@ class RNSBase:
         self.rns_base = base_mod.copy()
         self.base_size = len(base_mod)
         if ntt_tables is None:
-            self.ntt_tables = [[0, 0, 0, 0] for _ in range(self.base_size)]
+            self.ntt_tables = [[0] for _ in range(self.base_size)]
         else:
-            self.ntt_tables = ntt_tables
+            self.ntt_tables = ntt_tables.copy()
         # Initialize base variables
         self.base_prod = 1
         self.punctured_prod_array = [1] * self.base_size

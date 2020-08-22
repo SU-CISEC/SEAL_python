@@ -34,21 +34,20 @@ class BFV:
     # -- L (max mult depth)
     # -- S (security level)
 
-    def __init__(self, n, t, B, q, qnp, b, bnp):
+    def __init__(self, n, t, q, b, qnp, bnp):
         self.n = n
         self.t = t
         self.q = q
         self.b = b
-        self.B = B
 
         # RelinKeys
         self.T = 0
         self.l = 0
         self.p = 0
 
-        # for RNS it changed to [[w,w_inv,psi,psi_inv],[w,w_inv,psi,psi_inv],...]
-        self.qnp = qnp # array NTT parameters: [w,w_inv,psi,psi_inv]
-        self.bnp = bnp
+        # for RNS it changed to [[psi_0],[psi_1],...]
+        self.q_ntt_table = qnp # array NTT parameters: [w,w_inv,psi,psi_inv]
+        self.b_ntt_table = bnp
         #
         self.sk = []
         self.pk = []
@@ -73,7 +72,6 @@ class BFV:
         str = str + "t  : {}\n".format(self.t)
         str = str + "q  : {}\n".format(self.q)
         str = str + "b  : {}\n".format(self.b)
-        str = str + "B  : {}\n".format(self.B)
         str = str + "p  : {}\n".format(self.p)
         str = str + "T  : {}\n".format(self.T)
         str = str + "l  : {}\n".format(self.l)
@@ -84,8 +82,8 @@ class BFV:
         """
         sk <- R_2
         """
-        s = RNSPoly(self.n,self.q,self.qnp)
-        s.randomize(2)
+        s = RNSPoly(self.n, self.q, self.q_ntt_table)
+        s.randomize(0)
         self.sk = s
     #
     def PublicKeyGen(self):
@@ -95,10 +93,12 @@ class BFV:
         pk[0] <- (-(a*sk)+e) mod q
         pk[1] <- a
         """
-        a, e = RNSPoly(self.n,self.q,self.qnp), RNSPoly(self.n,self.q,self.qnp)
-        a.randomize(self.q)
-        e.randomize(self.B)
-        pk0 = -(a*self.sk + e)
+        a, e = RNSPoly(self.n, self.q, self.q_ntt_table), RNSPoly(self.n, self.q, self.q_ntt_table)
+        a.randomize(2, True)
+        e.randomize(1)
+        pk0 = a*self.sk
+        pk0 = pk0 + e
+        pk0 = -pk0
         pk1 = a
         self.pk = [pk0,pk1]
     #
@@ -111,11 +111,11 @@ class BFV:
         sk2 = (self.sk * self.sk)
 
         for i in range(self.l+1):
-            ai   , ei    = Poly(self.n,self.q,self.qnp), Poly(self.n,self.q,self.qnp)
+            ai   , ei    = Poly(self.n, self.q, self.q_ntt_table), Poly(self.n, self.q, self.q_ntt_table)
             ai.randomize(self.q)
             ei.randomize(self.B)
 
-            Ts2   = Poly(self.n,self.q,self.qnp)
+            Ts2   = Poly(self.n, self.q, self.q_ntt_table)
             Ts2.F = [((self.T**i)*j) % self.q for j in sk2.F]
 
             rlki0 = Ts2 - (ai*self.sk + ei)
@@ -129,66 +129,6 @@ class BFV:
         self.p = p
         pass
     #
-    def Encryption(self, m):
-        """
-        delta = floor(q/t)
-
-        u  <- random polynomial from R_2
-        e1 <- random polynomial from R_B
-        e2 <- random polynomial from R_B
-
-        c0 <- pk0*u + e1 + m*delta
-        c1 <- pk1*u + e2
-        """
-        delta = int(math.floor(self.q/self.t))
-
-        u, e1, e2 = Poly(self.n,self.q,self.qnp), Poly(self.n,self.q,self.qnp), Poly(self.n,self.q,self.qnp)
-
-        u.randomize(2)
-        e1.randomize(self.B)
-        e2.randomize(self.B)
-
-        md = Poly(self.n,self.q,self.qnp)
-        md.F = [(delta*x) % self.q for x in m.F]
-
-        c0 = self.pk[0]*u + e1
-        c0 = c0 + md
-        c1 = self.pk[1]*u + e2
-
-        return [c0,c1]
-    #
-    def Decryption(self, ct):
-        """
-        ct <- c1*s + c0
-        ct <- floot(ct*(t/q))
-        m <- [ct]_t
-        """
-        m = ct[1]*self.sk + ct[0]
-        m.F = [((self.t*x)/self.q) for x in m.F]
-        m = round(m)
-        m = m % self.t
-        mr = Poly(self.n,self.t,self.qnp)
-        mr.F = m.F
-        mr.inNTT = m.inNTT
-        return mr
-    #
-    def DecryptionV2(self, ct):
-        """
-        ct <- c2*s^2 + c1*s + c0
-        ct <- floot(ct*(t/q))
-        m <- [ct]_t
-        """
-        sk2 = (self.sk * self.sk)
-        m = ct[0]
-        m = (m + (ct[1]*self.sk))
-        m = (m + (ct[2]*sk2))
-        m.F = [((self.t * x) / self.q) for x in m.F]
-        m = round(m)
-        m = m % self.t
-        mr = Poly(self.n,self.t,self.qnp)
-        mr.F = m.F
-        mr.inNTT = m.inNTT
-        return mr
     #
     def RelinearizationV1(self,ct):
         c0 = ct[0]
@@ -198,11 +138,11 @@ class BFV:
         # divide c2 into base T
         c2i = []
 
-        c2q = Poly(self.n,self.q,self.qnp)
+        c2q = Poly(self.n, self.q, self.q_ntt_table)
         c2q.F = [x for x in c2.F]
 
         for i in range(self.l+1):
-            c2r = Poly(self.n,self.q,self.qnp)
+            c2r = Poly(self.n, self.q, self.q_ntt_table)
 
             for j in range(self.n):
                 qt = int(c2q.F[j]/self.T)
@@ -213,8 +153,8 @@ class BFV:
 
             c2i.append(c2r)
 
-        c0r = Poly(self.n,self.q,self.qnp)
-        c1r = Poly(self.n,self.q,self.qnp)
+        c0r = Poly(self.n, self.q, self.q_ntt_table)
+        c1r = Poly(self.n, self.q, self.q_ntt_table)
         c0r.F = [x for x in c0.F]
         c1r.F = [x for x in c1.F]
 
@@ -227,20 +167,6 @@ class BFV:
     def RelinearizationV2(self,ct):
         pass
     #
-    def Encode(self,m): # binary encode
-        mr = Poly(self.n,self.t)
-        mt = m
-        for i in range(self.n):
-            mr.F[i] = (mt % self.t)
-            mt      = (mt // self.t)
-        return mr
-    #
-    def Decode(self,m): # binary decode
-        mr = 0
-        for i,c in enumerate(m.F):
-            mr = (mr + (c * pow(self.t,i)))# % self.t
-        return mr
-    #
     def HomomorphicAddition(self, ct0, ct1):
         ct0_b = ct0[0] + ct1[0]
         ct1_b = ct0[1] + ct1[1]
@@ -251,127 +177,21 @@ class BFV:
         ct1_b = ct0[1] - ct1[1]
         return [ct0_b,ct1_b]
     #
-    def HomomorphicMultiplication(self, ct0, ct1):
-        ct00 = ct0[0]
-        ct01 = ct0[1]
-        ct10 = ct1[0]
-        ct11 = ct1[1]
-
-        r0 = RefPolMulv2(ct00.F,ct10.F)
-        r1 = RefPolMulv2(ct00.F,ct11.F)
-        r2 = RefPolMulv2(ct01.F,ct10.F)
-        r3 = RefPolMulv2(ct01.F,ct11.F)
-
-        c0 = [x for x in r0]
-        c1 = [x+y for x,y in zip(r1,r2)]
-        c2 = [x for x in r3]
-
-        c0 = [((self.t * x) / self.q) for x in c0]
-        c1 = [((self.t * x) / self.q) for x in c1]
-        c2 = [((self.t * x) / self.q) for x in c2]
-
-        c0 = [(round(x) % self.q) for x in c0]
-        c1 = [(round(x) % self.q) for x in c1]
-        c2 = [(round(x) % self.q) for x in c2]
-
-        # Move to regular modulus
-        r0 = Poly(self.n,self.q,self.qnp)
-        r1 = Poly(self.n,self.q,self.qnp)
-        r2 = Poly(self.n,self.q,self.qnp)
-
-        r0.F = c0
-        r1.F = c1
-        r2.F = c2
-
-        return [r0,r1,r2]
-    # SEAL Encryption function
-    def EncryptionSEAL(self, m):
-        delta = int(math.floor(self.q/self.t))
-
-        u, e1, e2 = Poly(self.n,self.q,self.qnp), Poly(self.n,self.q,self.qnp), Poly(self.n,self.q,self.qnp)
-
-        u.randomize(2)
-        e1.randomize(self.B)
-        e2.randomize(self.B)
-
-        md = Poly(self.n,self.q,self.qnp)
-        md.F = [_ for _ in m.F]
-
-        for i,c in enumerate(md.F):
-            if(c >= (self.t >> 1)):
-                temp = delta * c
-
-                temp_h = temp >> 64
-                temp_l = temp & 0xFFFFFFFFFFFFFFFF
-
-                temp_l = temp_l + 1
-                temp_h = temp_h + (temp_l >> 64)
-
-                temp = (temp_h << 64) + temp_l
-
-                temp = temp % self.q
-
-                md.F[i] = temp
-            else:
-                md.F[i] = (c * delta) % self.q
-
-        c0 = self.pk[0]*u + e1
-        c0 = c0 + md
-        c1 = self.pk[1]*u + e2
-
-        return [c0,c1]
-    # SEAL Decryption function
-    def DecryptionSEAL(self, ct, g):
-        """
-        ct <- c1*s + c0
-        st,sg <- fastbconv(ct)
-        m <- (st-sg) and scaling
-        m <- m* (g^-1 mod t)
-        """
-        m = ct[1]*self.sk + ct[0]
-
-        g_div_2 = (g>>1)
-        gt      = (g*self.t)%self.q
-        q_inv_t = modinv((-self.q)%self.t, self.t)
-        q_inv_g = modinv((-self.q)%g, g)
-        g_inv_t = modinv(g, self.t)
-
-        m.F = [(x*gt) % self.q for x in m.F]
-
-        st, sg = Poly(self.n,self.q,self.qnp), Poly(self.n,self.q,self.qnp)
-
-        st.F = [(x*q_inv_t) % self.t for x in m.F]
-        sg.F = [(x*q_inv_g) % g      for x in m.F]
-
-        for i in range(self.n):
-            m.F[i] = (st.F[i] - sg.F[i]) % self.t
-
-            if(sg.F[i] > g_div_2):
-                m.F[i] = (m.F[i] + g) % self.t
-            else:
-                m.F[i] = m.F[i]
-
-        m.F = [(x*g_inv_t) % self.t for x in m.F]
-
-        mr = Poly(self.n,self.t,self.qnp)
-        mr.F = m.F
-        mr.inNTT = m.inNTT
-
-        return mr
-#
 
     def EncryptionSEAL_RNS(self, m_poly, m_len):
         # delta = int(math.floor(self.q/self.t))
         # Decompose q_mod_t into rns
 
-        u, e1, e2 = RNSPoly(self.n,self.q,self.qnp), RNSPoly(self.n,self.q,self.qnp), RNSPoly(self.n,self.q,self.qnp)
+        u, e1, e2 = RNSPoly(self.n, self.q, self.q_ntt_table), RNSPoly(self.n, self.q, self.q_ntt_table), RNSPoly(self.n, self.q, self.q_ntt_table)
 
-        u.randomize(2)
-        e1.randomize(self.B)
-        e2.randomize(self.B)
+        u.randomize(0)
+        e1.randomize(1)
+        e2.randomize(1)
 
-        c0 = self.pk[0] * u + e1
-        c1 = self.pk[1] * u + e2
+        c0 = self.pk[0] * u
+        c1 = self.pk[1] * u
+        c0 = c0 + e1
+        c1 = c1 + e2
         c0 = self.rns.divide_and_round_q_last_inplace(c0)
         c1 = self.rns.divide_and_round_q_last_inplace(c1)
 
@@ -387,16 +207,6 @@ class BFV:
 
         return [c0, c1]
 
-    def EncodeSEAL(self,m): # hex encode
-        hex_poly = str(m)
-        size = len(hex_poly)
-        mr = Poly(self.n, self.t)
-        value = 0
-        for i in range(len(hex_poly)):
-            value += int(hex_poly[size - i - 1]) * pow(16, i)
-            mr.F[size - i - 1] = int(hex_poly[i])
-        return mr, value
-
     def EncodeInt(self,value):
         m_poly = Poly(self.n, self.t)
         i = 0
@@ -411,7 +221,7 @@ class BFV:
         coeff_neg_threshold = (self.t + 1) >> 1
         result = 0
         result_is_negative = False
-        for i in range(poly_len-1, 0, -1):
+        for i in range(poly_len-1, -1, -1):
             coeff = poly[i]
             result = result << 1
             coeff_is_negative = coeff >= coeff_neg_threshold
@@ -433,16 +243,6 @@ class BFV:
 
 
 
-
-
-
-    #
-    def DecodeSEAL(self,m): # binary decode
-        mr = 0
-        for i,c in enumerate(m.F):
-            mr = (mr + (c * pow(16, i))) % self.t
-        return mr
-
 # SEAL Decryption RNS function
     def DecryptionSEAL_RNS(self, ct):
         """
@@ -452,8 +252,8 @@ class BFV:
         m <- m* (g^-1 mod t)
         """
         self.sk.drop_last_poly()
-        m = ct[1]*self.sk + ct[0]
-        print('After dot prod with sk:' + str(m))
+        mask = ct[1]*self.sk
+        m = mask + ct[0]
         mr = self.rns2.decrypt_scale_and_round(m)
         return mr
 
