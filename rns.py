@@ -14,14 +14,15 @@ class RNS:
         # Constants
         # TODO Make m_sk and gamma variable because they depend on q, in SEAL it changes when q is changed.
         self.m_sk = 2305843009213554689
+        self.m_sk_root = 307554654119321
         self.m_tilde = 1 << 32
         self.gamma = 2305843009213683713
 
         # Bases
         self.base_q = RNSBase(self.q, qnp)
         self.base_t_gamma = RNSBase([self.t, self.gamma])
-        self.base_B = RNSBase(self.b)
-        self.base_Bsk = RNSBase(self.b + [self.m_sk])
+        self.base_B = RNSBase(self.b, bnp)
+        self.base_Bsk = RNSBase(self.b + [self.m_sk], bnp + [self.m_sk_root])
         self.base_Bsk_m_tilde = RNSBase(self.b + [self.m_sk, self.m_tilde])
 
         # Base Converters

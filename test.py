@@ -50,12 +50,10 @@ class BFVTest(unittest.TestCase):
         q = [1099511590913, 1099511592961, 1099511603713]
         k = len(q)
         q_root = [12044354199, 168913082, 694658335]
-        q_ntt = [generate_NTT_tables(n, q[i], q_root[i]) for i in range(k)]
 
         b = [2305843009213317121, 2305843009213243393]
         l = len(b)
         b_root = [829315415491244, 32973993658837]
-        b_ntt = [generate_NTT_tables(n, b[i], b_root[i]) for i in range(l)]
 
         # Determine B (bound of distribution X)
         sigma = 3.1
@@ -65,7 +63,7 @@ class BFVTest(unittest.TestCase):
         T = 256
         p = 16
 
-        Evaluator = BFV(n, t, q, b, q_ntt, b_ntt)
+        Evaluator = BFV(n, t, q, b, q_root, b_root)
 
         # Generate Keys
         Evaluator.SecretKeyGen()

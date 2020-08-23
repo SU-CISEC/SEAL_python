@@ -56,7 +56,7 @@ class BFV:
 
         # RNS init
         self.rns = RNS(n, t, q, b, qnp, bnp)
-        self.rns2 = RNS(n, t, q[:-1], b[:-1], qnp[:-1], bnp[:-1])
+        self.rns2 = RNS(n, t, q[:-1], b, qnp[:-1], bnp)
 
         # Calculations #
         self.q_total = self.rns.base_q.base_prod
