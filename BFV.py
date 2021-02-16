@@ -257,6 +257,20 @@ class BFV:
         mr = self.rns2.decrypt_scale_and_round(m)
         return mr
 
+    def DecryptionSEAL_RNSv2(self, ct):
+        """
+        ct <- c1*s + c0
+        st,sg <- fastbconv(ct)
+        m <- (st-sg) and scaling
+        m <- m* (g^-1 mod t)
+        """
+        s = self.sk.copy()
+        s.drop_last_poly()
+        s2 = s * s
+        m = ct[2] * s2 + ct[1] * s + ct[0]
+        mr = self.rns2.decrypt_scale_and_round(m)
+        return mr
+
     def HomomorphicMultiplication_RNS(self, ct0, ct1):
         # Extract RNS_poly
         ct00 = ct0[0]

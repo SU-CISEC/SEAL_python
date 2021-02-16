@@ -44,16 +44,16 @@ class BFVTest(unittest.TestCase):
         self.assertEqual(0x12345678, result)
 
     def test_bfv_mult(self):
-        t = 1 << 6
-        n = 256
+        t = 1 << 60 -1
+        n = 64
 
-        q = [1099511590913, 1099511592961, 1099511603713]
+        q = [1152921504606837377, 1152921504606842753, 1152921504606844289, 1152921504606844417]
         k = len(q)
-        q_root = [12044354199, 168913082, 694658335]
+        q_root = [5401323409338715, 2906473766327440, 417413482957699, 42988700452716623]
 
-        b = [2305843009213317121, 2305843009213243393]
+        b = [2305843009213687297, 2305843009213686401, 2305843009213685377, 2305843009213683713]
         l = len(b)
-        b_root = [829315415491244, 32973993658837]
+        b_root = [125512772889913354, 1875665075201606, 111036555925430680, 14754132512692094]
 
         # Determine B (bound of distribution X)
         sigma = 3.1
@@ -70,19 +70,19 @@ class BFVTest(unittest.TestCase):
         Evaluator.PublicKeyGen()
 
         # Encode message
-        m_poly, m_len = Evaluator.EncodeInt(10)
+        m_poly, m_len = Evaluator.EncodeInt(0x12345678)
         encrypted = Evaluator.EncryptionSEAL_RNS(m_poly, m_len)
 
-        m_poly2, m_len2 = Evaluator.EncodeInt(5)
+        m_poly2, m_len2 = Evaluator.EncodeInt(0x54321)
         encrypted2 = Evaluator.EncryptionSEAL_RNS(m_poly2, m_len2)
 
         mul_enc = Evaluator.HomomorphicMultiplication_RNS(encrypted, encrypted2)
 
-        decrypted = Evaluator.DecryptionSEAL_RNS(mul_enc)
+        decrypted = Evaluator.DecryptionSEAL_RNSv2(mul_enc)
 
         result = Evaluator.DecodeInt(decrypted, m_len + m_len2)
 
-        self.assertEqual(50, result)
+        self.assertEqual(0x5FCBBBB88D78, result)
 
 
 

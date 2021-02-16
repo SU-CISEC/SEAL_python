@@ -88,10 +88,16 @@ class RNSPoly:
     def __setitem__(self, key, value):
         self.rns_poly[key] = value
 
-    def copy_poly(self, poly):
+    def copy(self):
         c = RNSPoly(self.n, self.RNS_mod, self.ntt_tables)
+        c.inNTT = self.inNTT
         for i in range(self.k):
-            c[i] = poly % self.RNS_mod[i]
+            c[i] = self[i].copy()
+        return c
+    # def copy_poly(self, poly):
+    #     c = RNSPoly(self.n, self.RNS_mod, self.ntt_tables)
+    #     for i in range(self.k):
+    #         c[i] = poly % self.RNS_mod[i]
 
     def drop_last_poly(self):
         self.rns_poly = self.rns_poly[:-1]
@@ -112,20 +118,20 @@ class Poly:
     def randomize(self, dist, domain=False):
         # Ternary Distribution [-1,0,1]
         # TODO: Seed need to be changed, be careful
-        if dist == 0:
-            B = 1
-            seed(1)
-            self.F = [randint(-B, B) % self.q for i in range(self.n)]
-        # Normal Distribution [-6,...,0,...6]
-        elif dist == 1:
-            B = 6
-            seed(2)
-            self.F = [randint(-B, B) % self.q for i in range(self.n)]
-        # Uniform Distribution [-q/2, q/2]
-        else:
-            B = self.q >> 1
-            self.F = [randint(-B, B) % self.q for i in range(self.n)]
-        # self.F = [1 for i in range(self.n)]
+        # if dist == 0:
+        #     B = 1
+        #     seed(1)
+        #     self.F = [randint(-B, B) % self.q for i in range(self.n)]
+        # # Normal Distribution [-6,...,0,...6]
+        # elif dist == 1:
+        #     B = 6
+        #     seed(2)
+        #     self.F = [randint(-B, B) % self.q for i in range(self.n)]
+        # # Uniform Distribution [-q/2, q/2]
+        # else:
+        #     B = self.q >> 1
+        #     self.F = [randint(-B, B) % self.q for i in range(self.n)]
+        self.F = [1 for i in range(self.n)]
         self.inNTT = domain
     #
     def __str__(self):
@@ -278,6 +284,12 @@ class Poly:
 
     def __setitem__(self, key, value):
         self.F[key] = value
+
+    def copy(self):
+        p = Poly(self.n, self.q, self.root)
+        p.inNTT = self.inNTT
+        p.F = self.F.copy()
+        return p
 
     def __floordiv__(self, b):
         b = Poly(self.n, self.q, self.root)
